@@ -53,7 +53,6 @@ namespace Icu
 		internal static bool ConditionApplies(string condition)
 		{
 			// <dllmap os="!windows,osx" dll="libdl.so" target="libdl.so.2" />
-			// <dllmap os="osx" dll="libdl.so" target="libdl.dylib"/>
 
 			var negate = condition.StartsWith("!");
 			if (negate)

@@ -49,8 +49,7 @@ namespace Icu.Tests
 		}
 
 		[TestCase(ExpectedResult = "libdl.so.2", IncludePlatform = "Linux")]
-		[TestCase(ExpectedResult = "libdl.dylib", IncludePlatform = "MacOsX")]
-		[TestCase(ExpectedResult = "libdl.dll", IncludePlatform = "Win")]
+		[TestCase(ExpectedResult = "libdl.dll", IncludePlatform = "MacOsX, Win")]
 		public string MapLibraryName()
 		{
 			_tempPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
@@ -60,7 +59,6 @@ namespace Icu.Tests
 			File.WriteAllText(configFile, @"<?xml version=""1.0"" encoding=""utf-8"" ?>
 <configuration>
   <dllmap os=""!windows,osx"" dll=""libdl.dll"" target=""libdl.so.2"" />
-  <dllmap os=""osx"" dll=""libdl.dll"" target=""libdl.dylib""/>
 </configuration>");
 
 			return DllResolver.MapLibraryName(fakeDll, "libdl.dll");

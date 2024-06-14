@@ -58,10 +58,10 @@ or, if wanting to run tests on just one specific .net version (v8.0 in this exam
 dotnet test source/icu.net.sln -p:TargetFramework=net8.0
 ```
 
-### Linux and macOS
+### Linux
 
-It is important for `icu.net.dll.config` to be bundled with your application when not
-running on Windows. If it doesn't copy reliably to the output directory, you might find
+It is important for `icu.net.dll.config` to be bundled with your application when
+running on Linux. If it doesn't copy reliably to the output directory, you might find
 adding something like the following to your `csproj` file will resolve the issue. Note
 that the version number in the path must match the version number of icu.net that is
 referenced in the project.
