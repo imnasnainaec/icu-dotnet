@@ -1,4 +1,4 @@
-// Copyright (c) 2013 SIL International
+// Copyright (c) 2013-2025 SIL Global
 // This software is licensed under the MIT license (http://opensource.org/licenses/MIT)
 using System;
 using System.Collections.Generic;
@@ -11,10 +11,7 @@ namespace Icu
 	/// <summary>
 	/// A Locale object represents a specific geographical, political, or cultural region.
 	/// </summary>
-	public class Locale
-#if FEATURE_ICLONEABLE
-		: ICloneable
-#endif
+	public class Locale	: ICloneable
 	{
 		/// <summary>
 		/// Construct a default locale object, a Locale for the default locale ID

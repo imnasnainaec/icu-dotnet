@@ -16,6 +16,50 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- In Character class, added all enums from Unicode's uchar.h that were missing:
+  UBidiPairedBracketType, UBlockCode, UEastAsianWidth, UPropertyNameChoice, UJoiningType,
+  UJoiningGroup, UGraphemeClusterBreak, UWordBreakValues, USentenceBreak, ULineBreak,
+  UHangulSyllableType, UIndicPositionalCategory, UIndicSyllabicCategory, UIndicConjunctBreak,
+  UVerticalOrientation, UIdentifierStatus, UIdentifierType.
+
+### Deprecated
+
+- In Character class, added \[Obsolete\] attribute to enum members UDecompositionType.COUNT and
+  UNumericType.COUNT.
+
+## [3.0.0] - 2024-11-21
+
+### Added
+
+- Added support for netstandard2.0
+
+### Changed
+
+- Exception messages on .NET 6+ contain more information when dynamic library loading fails
+- Update dependencies to the latest stable versions
+
+### Fixed
+
+- Fixed a bug when using a library compiled against icu-dotnet netstandard1.6, when your project referenced a different version of icu-dotnet
+
+### Removed
+
+- Removed support for [netstandard1.6](https://learn.microsoft.com/en-us/dotnet/standard/net-standard?tabs=net-standard-1-6#select-net-standard-version)
+- Removed Icu.SortKey class which was only in the netstandard1.6 version of the dll
+
+## [2.10.0] - 2024-06-17
+
+### Added
+
+- Support macOS
+
+### Changed
+
+- Move .NET 6.0 builds to .NET 8.0
+- Update some GitHub Actions versions
+
 ## [2.9.0] - 2023-02-15
 
 ### Added
@@ -277,8 +321,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Change versioning scheme. Previously the versions for the nuget package included
   the ICU version. Now we follow [Semantic Versioning](http://semver.org/).
 
-[Unreleased]: https://github.com/sillsdev/icu-dotnet/compare/v2.9.0...master
+[Unreleased]: https://github.com/sillsdev/icu-dotnet/compare/v2.10.0...master
 
+[2.10.0]: https://github.com/sillsdev/icu-dotnet/compare/v2.9.0...v2.10.0
 [2.9.0]: https://github.com/sillsdev/icu-dotnet/compare/v2.8.1...v2.9.0
 [2.8.1]: https://github.com/sillsdev/icu-dotnet/compare/v2.8.0...v2.8.1
 [2.8.0]: https://github.com/sillsdev/icu-dotnet/compare/v2.7.1...v2.8.0

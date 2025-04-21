@@ -1,6 +1,5 @@
-// Copyright (c) 2013-2022 SIL International
+// Copyright (c) 2013-2025 SIL Global
 // This software is licensed under the MIT license (http://opensource.org/licenses/MIT)
-
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -75,6 +74,7 @@ namespace Icu
 
 		#region Dynamic method loading
 
+#if !NET6_0_OR_GREATER
 		#region Native methods for Linux
 
 		private const int RTLD_NOW = 2;
@@ -132,6 +132,7 @@ namespace Icu
 		}
 
 		#endregion
+#endif
 
 		private static int IcuVersion;
 		private static string _IcuPath;
@@ -174,6 +175,12 @@ namespace Icu
 #endif
 #if NET
 				var managedPath = currentAssembly.Location;
+				// If the application is published as a single file, Assembly.Location will be an empty string.
+				// Per the warning https://learn.microsoft.com/en-us/dotnet/core/deploying/single-file/warnings/il3000 we should use AppContext.BaseDirectory instead.
+				if (string.IsNullOrEmpty(managedPath))
+				{
+					managedPath = AppContext.BaseDirectory;
+				}
 #else
 				var managedPath = currentAssembly.CodeBase ?? currentAssembly.Location;
 #endif
@@ -256,7 +263,7 @@ namespace Icu
 			}
 
 			var arch = IsRunning64Bit ? "x64" : "x86";
-			var platform = IsWindows ? "win" : IsMac? "osx" : "linux";
+			var platform = IsWindows ? "win" : IsMac ? "osx" : "linux";
 
 			// Look for ICU binaries in lib/{win,osx,linux}-{x86,x64} subdirectory first
 			if (CheckDirectoryForIcuBinaries(
@@ -328,59 +335,48 @@ namespace Icu
 					return IntPtr.Zero;
 
 				IntPtr handle;
-				string libPath;
 				int lastError;
 				string loadMethod;
 
+				var libName = IsWindows
+					? $"{basename}{icuVersion}.dll"
+					: IsMac
+					? $"lib{basename}.{icuVersion}.dylib"
+					: $"lib{basename}.so.{icuVersion}";
+				var libPath = string.IsNullOrEmpty(_IcuPath) ? libName : Path.Combine(_IcuPath, libName);
+
+#if NET6_0_OR_GREATER
+				string exceptionErrorMessage = null;
+				loadMethod = "NativeLibrary.Load";
+				try
+				{
+					handle = NativeLibrary.Load(libPath);
+				}
+				catch (DllNotFoundException ex)
+				{
+					handle = IntPtr.Zero;
+					exceptionErrorMessage = ex.Message;
+				}
+#else
 				if (IsWindows)
 				{
 					loadMethod = nameof(LoadLibraryEx);
-					var libName = $"{basename}{icuVersion}.dll";
-					var isIcuPathSpecified = !string.IsNullOrEmpty(_IcuPath);
-					libPath = isIcuPathSpecified ? Path.Combine(_IcuPath, libName) : libName;
-
-					var loadLibraryFlags = LoadLibraryFlags.NONE;
-
-					if (isIcuPathSpecified) loadLibraryFlags |= LoadLibraryFlags.LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LoadLibraryFlags.LOAD_LIBRARY_SEARCH_DEFAULT_DIRS;
-
+					var loadLibraryFlags = string.IsNullOrEmpty(_IcuPath)
+						? LoadLibraryFlags.NONE
+						: LoadLibraryFlags.LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LoadLibraryFlags.LOAD_LIBRARY_SEARCH_DEFAULT_DIRS;
 					handle = LoadLibraryEx(libPath, IntPtr.Zero, loadLibraryFlags);
-					lastError = Marshal.GetLastWin32Error();
-
-					Trace.WriteLineIf(handle == IntPtr.Zero && lastError != 0, $"Unable to load [{libPath}]. Error: {new Win32Exception(lastError).Message}");
 				}
 				else if (IsMac)
 				{
-					loadMethod = "NativeLibrary.Load";
-					var libName = $"lib{basename}.{icuVersion}.dylib";
-					libPath = string.IsNullOrEmpty(_IcuPath) ? libName : Path.Combine(_IcuPath, libName);
-#if NET6_0_OR_GREATER
-					try
-					{
-						handle = NativeLibrary.Load(libPath);
-					}
-					catch (DllNotFoundException)
-					{
-						handle = IntPtr.Zero;
-					}
-					lastError = Marshal.GetLastWin32Error();
-					Trace.WriteLineIf(handle == IntPtr.Zero && lastError != 0, $"Unable to load [{libPath}]. Error: {lastError}");
-#else
+					loadMethod = "(no load method)";
 					handle = IntPtr.Zero;
-					lastError = 0;
-					Trace.WriteLine($"Unable to load [{libPath}] on macOS without .NET 6 or higher.");
-#endif
 				}
 				else
 				{
 					loadMethod = nameof(dlopen);
-					var libName = $"lib{basename}.so.{icuVersion}";
-					libPath = string.IsNullOrEmpty(_IcuPath) ? libName : Path.Combine(_IcuPath, libName);
-
 					handle = dlopen(libPath, RTLD_NOW);
-					lastError = Marshal.GetLastWin32Error();
-
-					Trace.WriteLineIf(handle == IntPtr.Zero && lastError != 0, $"Unable to load [{libPath}]. Error: {lastError} ({dlerror()})");
 				}
+#endif
 
 				if (handle != IntPtr.Zero)
 				{
@@ -388,7 +384,22 @@ namespace Icu
 					return handle;
 				}
 
-				Trace.TraceWarning($"{loadMethod} of {libPath} failed with error {lastError}");
+				lastError = Marshal.GetLastWin32Error();
+#if NET6_0_OR_GREATER
+				if (!string.IsNullOrEmpty(exceptionErrorMessage))
+					exceptionErrorMessage = $" ({exceptionErrorMessage})";
+				var errorMsg = IsWindows
+					? $"{new Win32Exception(lastError).Message}{exceptionErrorMessage}"
+					: $"{lastError}({exceptionErrorMessage})";
+#else
+				var errorMsg = IsWindows
+					? new Win32Exception(lastError).Message
+					: IsMac
+					? $"{lastError} (macOS loading requires .NET 6 or greater)"
+					: $"{lastError} ({dlerror()})";
+#endif
+				Trace.WriteLineIf(lastError != 0, $"Unable to load [{libPath}]. Error: {errorMsg}");
+				Trace.TraceWarning($"{loadMethod} of {libPath} failed with error {errorMsg}");
 				icuVersion -= 1;
 			}
 		}
@@ -421,6 +432,12 @@ namespace Icu
 					// ignore failures - can happen when running unit tests
 				}
 
+#if NET6_0_OR_GREATER
+				if (_IcuCommonLibHandle != IntPtr.Zero)
+					NativeLibrary.Free(_IcuCommonLibHandle);
+				if (_IcuI18NLibHandle != IntPtr.Zero)
+					NativeLibrary.Free(_IcuI18NLibHandle);
+#else
 				if (IsWindows)
 				{
 					if (_IcuCommonLibHandle != IntPtr.Zero)
@@ -428,22 +445,14 @@ namespace Icu
 					if (_IcuI18NLibHandle != IntPtr.Zero)
 						FreeLibrary(_IcuI18NLibHandle);
 				}
-				else if (IsMac)
-				{
-#if NET6_0_OR_GREATER
-					if (_IcuCommonLibHandle != IntPtr.Zero)
-						NativeLibrary.Free(_IcuCommonLibHandle);
-					if (_IcuI18NLibHandle != IntPtr.Zero)
-						NativeLibrary.Free(_IcuI18NLibHandle);
-#endif
-				}
-				else
+				else if (!IsMac)
 				{
 					if (_IcuCommonLibHandle != IntPtr.Zero)
 						dlclose(_IcuCommonLibHandle);
 					if (_IcuI18NLibHandle != IntPtr.Zero)
 						dlclose(_IcuI18NLibHandle);
 				}
+#endif
 				_IcuCommonLibHandle = IntPtr.Zero;
 				_IcuI18NLibHandle = IntPtr.Zero;
 			}
@@ -470,51 +479,44 @@ namespace Icu
 		// This method is thread-safe and idempotent
 		private static T GetMethod<T>(IntPtr handle, string methodName, bool missingInMinimal = false) where T : class
 		{
-			var versionedMethodName = $"{methodName}_{IcuVersion}";
 			IntPtr methodPointer;
-			if (IsWindows)
-				methodPointer = GetProcAddress(handle, versionedMethodName);
-			else if (IsMac)
-			{
+
+			var versionedMethodName = $"{methodName}_{IcuVersion}";
 #if NET6_0_OR_GREATER
-				try
-				{
-					NativeLibrary.TryGetExport(handle, versionedMethodName, out methodPointer);
-				}
-				catch (DllNotFoundException)
-				{
-					methodPointer = IntPtr.Zero;
-				}
-#else
-				methodPointer = IntPtr.Zero;
-#endif
+			try
+			{
+				NativeLibrary.TryGetExport(handle, versionedMethodName, out methodPointer);
 			}
-			else
-				methodPointer = dlsym(handle, versionedMethodName);
+			catch (DllNotFoundException)
+			{
+				methodPointer = IntPtr.Zero;
+			}
+#else
+			methodPointer = IsWindows
+				? GetProcAddress(handle, versionedMethodName)
+				: IsMac
+				? IntPtr.Zero
+				: dlsym(handle, versionedMethodName);
+#endif
 
 			// Some systems (eg. Tizen) don't use methods with IcuVersion suffix
 			if (methodPointer == IntPtr.Zero)
 			{
-				if (IsWindows)
-					methodPointer = GetProcAddress(handle, methodName);
-				else if (IsMac)
-				{
 #if NET6_0_OR_GREATER
 				try
 				{
 					NativeLibrary.TryGetExport(handle, methodName, out methodPointer);
 				}
-				catch (DllNotFoundException)
-				{
-					methodPointer = IntPtr.Zero;
-				}
+				catch (DllNotFoundException) {};
 #else
-					methodPointer = IntPtr.Zero;
+				methodPointer = IsWindows
+					? GetProcAddress(handle, methodName)
+					: IsMac
+					? IntPtr.Zero
+					: dlsym(handle, methodName);
 #endif
-				}
-				else
-					methodPointer = dlsym(handle, methodName);
 			}
+
 			if (methodPointer != IntPtr.Zero)
 			{
 				// NOTE: Starting in .NET 4.5.1, Marshal.GetDelegateForFunctionPointer(IntPtr, Type) is obsolete.
@@ -560,7 +562,6 @@ namespace Icu
 					ExceptionFromErrorCode.ThrowIfError(err);
 				if (outLength >= length)
 				{
-					err = ErrorCode.NoErrors; // ignore possible U_BUFFER_OVERFLOW_ERROR or STRING_NOT_TERMINATED_WARNING
 					Marshal.FreeCoTaskMem(resPtr);
 					length = outLength + 1; // allow room for the terminating NUL (FWR-505)
 					resPtr = Marshal.AllocCoTaskMem(length * 2);
@@ -680,7 +681,7 @@ namespace Icu
 
 			[UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
 			internal delegate void u_setDataDirectoryDelegate(
-				[MarshalAs(UnmanagedType.LPStr)]string directory);
+				[MarshalAs(UnmanagedType.LPStr)] string directory);
 
 			[UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
 			internal delegate int u_charNameDelegate(
@@ -826,7 +827,7 @@ namespace Icu
 
 		/// <summary>Set the ICU data directory</summary>
 		internal static void u_setDataDirectory(
-			[MarshalAs(UnmanagedType.LPStr)]string directory)
+			[MarshalAs(UnmanagedType.LPStr)] string directory)
 		{
 			if (Methods.u_setDataDirectory == null)
 				Methods.u_setDataDirectory = GetMethod<MethodsContainer.u_setDataDirectoryDelegate>(IcuCommonLibHandle, "u_setDataDirectory");

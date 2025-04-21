@@ -1,14 +1,14 @@
 <Project>
   <PropertyGroup>
-    <TargetFrameworks>net40;net451;netstandard1.6;net8.0</TargetFrameworks>
+    <TargetFrameworks>net40;net451;netstandard2.0;net8.0</TargetFrameworks>
     <PlatformAlias>netstandard</PlatformAlias>
     <OutputPath>$(MSBuildThisFileDirectory)\..\output\$(Configuration)</OutputPath>
     <PackageOutputPath>$(MSBuildThisFileDirectory)\..\output</PackageOutputPath>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <Company>SIL International</Company>
-    <Authors>SIL International</Authors>
-    <Copyright>Copyright © 2007-2023 SIL International</Copyright>
+    <Company>SIL Global</Company>
+    <Authors>SIL Global</Authors>
+    <Copyright>Copyright © 2007-2025 SIL Global</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/sillsdev/icu-dotnet</PackageProjectUrl>
     <AppendToReleaseNotesProperty><![CDATA[

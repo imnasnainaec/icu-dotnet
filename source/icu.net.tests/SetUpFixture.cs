@@ -1,6 +1,5 @@
-// Copyright (c) 2017-2022 SIL International
+// Copyright (c) 2017-2025 SIL Global
 // This software is licensed under the MIT license (http://opensource.org/licenses/MIT)
-
 using System;
 using System.Runtime.InteropServices;
 using NUnit.Framework;
@@ -16,7 +15,7 @@ namespace Icu.Tests
 			{
 				// See Icu.Platform. Unfortunately that's internal, so we can't use it.
 
-#if !NETSTANDARD1_6 && !NET
+#if NETFRAMEWORK
 				// See http://www.mono-project.com/docs/faq/technical/#how-to-detect-the-execution-platform
 				switch ((int)Environment.OSVersion.Platform)
 				{
